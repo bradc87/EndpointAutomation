@@ -1,4 +1,5 @@
 import subprocess
+from  multiprocessing import Process
 import sqlite3
 import uuid
 import time
@@ -11,13 +12,13 @@ def runTask(uuid, command):
 
 def getPendingTasks():
     dbConn = sqlite3.connect("mAgentQueue.sqlite")
-    dbCursor = dbConn.execute("SELECT id, command FROM QUEUE WHERE done = 0")
+    dbCursor = dbConn.execute("SELECT ID, SERVER_COMMAND FROM TASK_QUEUE WHERE STATUS LIKE 'PENDING")
     jobs = dbCursor.fetchall()
 
     if len(jobs) == 0:
         return
 
-def main():
+def taskManagerLoop():
 
     runTask(1, './testScript1.sh')
     runTask(2, './testScript2.sh')
@@ -34,6 +35,21 @@ def main():
                 time.sleep(1)
                 continue
 
-main()
+def commsLoop():
+    while True:
+        print('Getting Instructions')
+        time.sleep(1)
+
+if __name__ == "__main__":
+    p = Process(target=commsLoop)
+    p2 = Process(target=taskManagerLoop)
+    p.start()
+    p2.start()
+
+    p.join()   
+    p2.join()
+
+
+
 
 
