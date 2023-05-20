@@ -13,12 +13,12 @@ def runTask(uuid, command):
     runningTasks.append(task)
 
 def getPendingTasks():
-    dbConn = sqlite3.connect("mAgentQueue.sqlite")
-    dbCursor = dbConn.execute("SELECT ID, SERVER_COMMAND FROM TASK_QUEUE WHERE STATUS LIKE 'PENDING")
-    jobs = dbCursor.fetchall()
+    
+    jobs = executeQuery("SELECT ID, SERVER_COMMAND FROM TASK_QUEUE WHERE STATUS LIKE ?", 'PENDING')
+    print(jobs)
 
-    if len(jobs) == 0:
-        return
+    #if len(jobs) == 0:
+    #   return
     
 def executeQuery(sql, values):
     dbConn = sqlite3.connect('mAgentQueue.sqlite')
@@ -33,6 +33,11 @@ def executeQuery(sql, values):
     finally:
         cursor.close()
         dbConn.close()
+
+@app.route('/getTaskStatus', methods=['POST'])
+def getTaskStatus():
+    print('Hello World')
+    return 'Heyo', 200
 
 @app.route('/insertTask', methods=['POST'])
 def insert_task():
@@ -55,6 +60,8 @@ def insert_task():
 
     executeQuery(sql, values)
     return 'Success', 200 
+
+
 
 def taskManagerLoop():
 
