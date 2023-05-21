@@ -34,6 +34,11 @@ def executeQuery(sql, values):
         cursor.close()
         dbConn.close()
 
+@app.route('/getAgentStatus', methods=['GET'])
+def getAgentStatus():
+    print('Server heartbeat response sent')
+    return '', 205
+
 @app.route('/getTaskStatus', methods=['POST'])
 def getTaskStatus():
     print('Hello World')
@@ -83,7 +88,7 @@ def taskManagerLoop():
 def commsLoop(): 
     while True:
         print('Getting Instructions')
-        time.sleep(1)
+        time.sleep(5)
 
 if __name__ == "__main__":
     p = Process(target=commsLoop) 
