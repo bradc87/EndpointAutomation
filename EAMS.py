@@ -8,6 +8,8 @@ import requests
 
 app = Flask(__name__)
 
+LOOP_INTERVAL=10
+
 def executeQuery(sql): 
     connection = psycopg2.connect(
             host="localhost",
@@ -18,10 +20,8 @@ def executeQuery(sql):
         )
 
     cursor = connection.cursor(cursor_factory = psycopg2.extras.DictCursor)
-    
     try:
         cursor.execute(sql)
-
         if sql.strip().upper().startswith("UPDATE"):
             connection.commit()
             return None  # Return None for update queries
@@ -40,7 +40,7 @@ def getEnabledEndpoints():
     endpointList = executeQuery(sql)
     return endpointList
 
-def updateAgentStatus(agentID, status):
+def updateEndpointStatus(agentID, status):
     if status == 'online':
         sql = f'''UPDATE ENDPOINT SET LAST_HEARTBEAT = NOW() WHERE ID = {agentID};'''
         executeQuery(sql) 
@@ -50,35 +50,66 @@ def updateAgentStatus(agentID, status):
 
 def writeLogEntry(msgClass, logText):
     curDate=datetime.now().strftime("%Y-%m-%d")
-    logfilePath = f"log/{curDate}.txt"  
+    curDateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logfilePath = f"log/EAMS.{curDate}.log"  
     
-    with open(log_file_path, "a") as log_file:
-        log_file.write(message + "\n")
+    with open(logfilePath, "a") as logFile:
+        print(f'[{curDateTime} - {msgClass}] - {logText}')
+        logFile.write(f'[{curDateTime} - {msgClass}] - {logText}\n')
 
-def getEndpointStatus():
+
+def endpointStatusLoop():
+    while True:
+        time.sleep(LOOP_INTERVAL)
+
+        try:    
+            endpointList = getEnabledEndpoints()
+        except Exception as e:
+            writeLogEntry('ERROR', 'EndpointStatusLoop: Error retrieving endpoints: ' + str(e))
+            return None
+        
+        if endpointList is None:
+            writeLogEntry('WARNING', 'EndpointStatusLoop: No enabled endpoints ')
+            return None
+        
+        for agent in endpointList:
+            endpointID = agent['id']
+            endpointAddress = agent['address']
+            endpointLastStatus = agent['status']
+            # Add logic here for additional endpoint types
+
+            endpointStatus = getWSGIEndpointStatus(endpointAddress)
+
+            if  endpointStatus != 1: 
+                if endpointLastStatus == 'online':
+                    writeLogEntry('WARNING', f'endpointStatusLoop: {endpointAddress} has gone offline')
+                updateEndpointStatus(endpointID, 'offline')
+                continue
+
+            #endpointStatus == 1:
+            if endpointLastStatus == 'offline':
+                writeLogEntry('INFO', f'endpointStatusLoop: {endpointAddress} has come online')
+            updateEndpointStatus(endpointID, 'online')            
+            continue
+
+def getWSGIEndpointStatus(endpointAddress):
     timeout_seconds = 5
-
-    try:    
-        endpointList = getEnabledEndpoints()
-    except Exception as e:
-        print("Error getting enabled endpoints:", e)
-        return None
-
-    if endpointList is None:
-        print("No enabled endpoints found.")
-        return None
-
-    for agent in endpointList:
-        agentID = agent['id']
-        agentAddress = agent['address']
-        agentStatus = agent['status']
-
-        url = f'http://{agentAddress}/getAgentStatus' 
+    url = f'http://{endpointAddress}/getAgentStatus' 
+    try: 
         response = requests.get(url, timeout=timeout_seconds)
-
         if response.status_code == 205: 
-            updateAgentStatus(agentID, 'online')
-        else:
-            updateAgentStatus(agentID, 'offline')
+            return 1 
+    except Exception as e:
+        writeLogEntry('ERROR', f'getWSGIEndpointStatus: Error validating endpoint {endpointAddress} : ' + str(e))
+    return 0
 
-getEndpointStatus()
+if __name__ == "__main__":
+    epStatusLoop = Process(target=endpointStatusLoop)
+    epStatusLoop.start()
+    app.run(debug=True, use_reloader=False, port=8080)
+    epStatusLoop.join()
+
+
+
+
+
