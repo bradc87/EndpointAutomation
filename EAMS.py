@@ -52,11 +52,10 @@ def writeLogEntry(msgClass, logText):
     curDate=datetime.now().strftime("%Y-%m-%d")
     curDateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logfilePath = f"log/EAMS.{curDate}.log"  
-    
-    with open(logfilePath, "a") as logFile:
-        print(f'[{curDateTime} - {msgClass}] - {logText}')
-        logFile.write(f'[{curDateTime} - {msgClass}] - {logText}\n')
-
+    if msgClass != 'DEBUG':
+        with open(logfilePath, "a") as logFile:
+            print(f'[{curDateTime} - {msgClass}] - {logText}')
+            logFile.write(f'[{curDateTime} - {msgClass}] - {logText}\n')
 
 def endpointStatusLoop():
     while True:
@@ -100,7 +99,7 @@ def getWSGIEndpointStatus(endpointAddress):
         if response.status_code == 205: 
             return 1 
     except Exception as e:
-        writeLogEntry('ERROR', f'getWSGIEndpointStatus: Error validating endpoint {endpointAddress} : ' + str(e))
+        writeLogEntry('DEBUG', f'getWSGIEndpointStatus: Error validating endpoint {endpointAddress} : ' + str(e))
     return 0
 
 if __name__ == "__main__":
