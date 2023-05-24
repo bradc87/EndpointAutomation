@@ -4,6 +4,8 @@ from flask import Flask, request
 import sqlite3
 import uuid
 import time
+from datetime import datetime
+import configparser
 
 runningTasks = []
 app = Flask(__name__)
@@ -66,8 +68,6 @@ def insert_task():
     executeQuery(sql, values)
     return 'Success', 200 
 
-
-
 def taskManagerLoop():
 
     runTask(1, './testScript1.sh')
@@ -89,6 +89,32 @@ def commsLoop():
     while True:
         print('Getting Instructions')
         time.sleep(5)
+
+def writeLogEntry(msgClass, logText):
+    curDate=datetime.now().strftime("%Y-%m-%d")
+    curDateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logfilePath = f"log/EAgent.{curDate}.log"  
+    if msgClass != 'DEBUG':
+        with open(logfilePath, "a") as logFile:
+            print(f'[{curDateTime} - {msgClass}] - {logText}')
+            logFile.write(f'[{curDateTime} - {msgClass}] - {logText}\n')
+
+@app.route('/task/insert', methods=['POST'])
+def taskInsert():
+    #Expected JSON Schema {"task_id": 1, "instance_id": 1, "server_command": "ls", "server_command_args": "-al"}
+
+    try:
+        postData = request.get_json()
+        taskID = postData['task_id']
+        instanceID = postData['instance_id']
+        serverCommand = postData['server_command']
+        serverCommandArgs = postData['server_command_args']
+    except Exception as e: 
+        writeLogEntry('ERROR', f'JSON Formatting Error: {e}')
+        return f'JSON Formatting Error: {e}', 500
+
+
+    return f'{taskID},{instanceID}', 200 
 
 if __name__ == "__main__":
     p = Process(target=commsLoop) 
