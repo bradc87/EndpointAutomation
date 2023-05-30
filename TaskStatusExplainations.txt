@@ -1,0 +1,19 @@
+Agent Derived Status
+Failed
+Running
+Pending
+
+MS Derived Status
+Waiting on Dependencies
+Waiting on Resource
+
+Launched
+Running
+
+Completed Normally
+Completed Abnormally
+
+Held
+Cancelled
+Error
+

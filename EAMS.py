@@ -93,6 +93,7 @@ def endpointStatusLoop():
             continue
 
 def getWSGIEndpointStatus(endpointAddress):
+
     timeout_seconds = 5
     url = f'http://{endpointAddress}/getAgentStatus' 
     try: 
@@ -102,6 +103,41 @@ def getWSGIEndpointStatus(endpointAddress):
     except Exception as e:
         writeLogEntry('DEBUG', f'getWSGIEndpointStatus: Error validating endpoint {endpointAddress} : ' + str(e))
     return 0
+
+def createTaskEntry(scheduleID, instanceID, effectiveDate, endpointUserID, workingDir, serverCommand, serverCommandArgs):
+    DEFAULT_STATUS = 'SCHEDULED'
+    sql = f'''INSERT INTO TASK (SCHEDULE_ID, INSTANCE_ID, STATUS ENDPOINT_USER_ID, WORKING_DIR, SERVER_COMMAND, SERVER_COMMAND_ARGS)
+              VALUES ({scheduleID}, {instanceID}, '{effectiveDate}', '{DEFAULT_STATUS}', {endpointUserID}, '{workingDir}', '{serverCommand}', '{serverCommandArgs}')
+           '''
+    executeQuery(sql)
+
+def getScheduleDefnDict(scheduleID):
+
+    sql = f'''SELECT SERVER_COMMAND, SERVER_COMMAND_ARGS, RUN_USER_ID, WORKING_DIR, CALENDAR_ID, ENDPOINT_ID WHERE SCHEDULE_ID = {scheduleID} AND ENABLED = True'''
+    scheduleDefnDict=executeQuery(sql)
+
+def getLastTaskStatusDict(scheduleID, effectiveDate):
+    sql = f'''SELECT INSTANCE_ID, STATUS FROM TASK WHERE DATE_TRUNC("day", EFFECTIVE_DATE) = {effectiveDate} WHERE SCHEDULE_ID = {scheduleID} '''
+    rawStatus = executeQuery(sql)   
+    if rawStatus is None:
+        #return tuple of (lastInstanceID, lastStatus)
+        lastTaskStatusDict={"lastInstanceID" : 0, "lastStatus" :  0}
+    else:
+        #Handle actual values here, maybe get the sql to create the dict in desired format
+        lastTaskStatusDict={"lastInstanceID" : 0, "lastStatus" :  0}
+
+    return lastTaskStatusDict
+
+def generateTasks(scheduleID, effectiveDate):
+    lastTaskStatus = getLastTaskStatusDict(scheduleID, effectiveDate)
+
+    if lastTaskStatus['lastStatus'] in (0,'Success'):
+        print('do this next')
+
+
+
+
+    
 
 if __name__ == "__main__":
     epStatusLoop = Process(target=endpointStatusLoop)
