@@ -4,6 +4,7 @@ Running
 Pending
 
 MS Derived Status
+Scheduled
 Waiting on Dependencies
 Waiting on Resource
 

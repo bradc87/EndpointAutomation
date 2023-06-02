@@ -13,6 +13,7 @@ app = Flask(__name__)
 def runTask(uuid, command):
     task = (uuid, subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
     runningTasks.append(task)
+    print('Inserted Task')
 
 def getPendingTasks():
     
@@ -46,11 +47,15 @@ def getTaskStatus():
     print('Hello World')
     return 'Heyo', 200
 
-@app.route('/insertTask', methods=['POST'])
+@app.route('/taskInsert', methods=['POST'])
 def insert_task():
+
+    #Expected JSON Schema: 
+    #{"taskID": 0, "taskCommand": "ls", "taskCommandArgs": "-l"}
 
     taskID = None
     taskCommand = None
+    taskCommandArgs = None
     postData = request.get_json()
 
     if 'taskID' not in postData:
@@ -61,34 +66,40 @@ def insert_task():
     
     taskID = postData["taskID"]
     taskCommand = postData['taskCommand']
+    taskCommandArgs = postData['taskCommandArgs']
 
-    sql = "INSERT INTO TASK_QUEUE (ID, SERVER_COMMAND, STATUS) VALUES (?, ?, 'PENDING')"
-    values = (taskID, taskCommand)
+    print(taskID)
+    print(taskCommand)
+
+    sql = "INSERT INTO TASK_QUEUE (TASK_ID, SERVER_COMMAND, SERVER_COMMAND_ARGS, TASK_STATUS) VALUES (?, ?, ?, 'PENDING')"
+    values = (taskID, taskCommand, taskCommandArgs)
+
 
     executeQuery(sql, values)
+
+    
     return 'Success', 200 
 
 def taskManagerLoop():
-
-    runTask(1, './testScript1.sh')
-    runTask(2, './testScript2.sh')
-    
-    while runningTasks:
-        for taskID, taskProcess in runningTasks:
-            taskReturnCode = taskProcess.poll()
-            if taskReturnCode is not None: #Task has finished
-                taskOutput, taskError = taskProcess.communicate()
-                print(taskOutput.decode())
-                runningTasks.remove((taskID,taskProcess))
-                break
-            else:
-                time.sleep(1)
-                continue
-
-def commsLoop(): 
     while True:
-        print('Getting Instructions')
-        time.sleep(5)
+        time.sleep(10)
+        print('Executing Task Loop...')
+
+
+
+        #Poll status of running tasks
+        if runningTasks:
+            for taskID, taskProcess in runningTasks:
+                taskReturnCode = taskProcess.poll()
+                if taskReturnCode is not None: #Task has finished
+                    taskOutput, taskError = taskProcess.communicate()
+                    print(taskOutput.decode())
+                    runningTasks.remove((taskID,taskProcess))
+                    break
+                else:
+                    time.sleep(1)
+                    continue
+
 
 def writeLogEntry(msgClass, logText):
     curDate=datetime.now().strftime("%Y-%m-%d")
@@ -117,7 +128,7 @@ def taskInsert():
     return f'{taskID},{instanceID}', 200 
 
 if __name__ == "__main__":
-    p = Process(target=commsLoop) 
+    p = Process(target=taskManagerLoop) 
     p.start()
     app.run(debug=True, use_reloader=False)
     p.join()   
