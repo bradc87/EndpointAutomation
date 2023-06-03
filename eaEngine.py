@@ -10,14 +10,14 @@ class eaEngine:
         configReader.read('eaConfig.ini')
 
         #Database configuration
-        self.dbHost = configReader('DEFAULT', 'dbHost')
-        self.dbPort = configReader('DEFAULT', 'dbPort')
-        self.dbDatabase = configReader('DEFAULT', 'dbDatabase')
-        self.dbUser = configReader('DEFAULT', 'dbUser')
-        self.dbPassword = configReader('DEFAULT', 'dbPassword')
+        self.dbHost = configReader.get('DEFAULT', 'dbHost')
+        self.dbPort = configReader.get('DEFAULT', 'dbPort')
+        self.dbDatabase = configReader.get('DEFAULT', 'dbDatabase')
+        self.dbUser = configReader.get('DEFAULT', 'dbUser')
+        self.dbPassword = configReader.get('DEFAULT', 'dbPassword')
 
         #Log configuration
-        self.logPath = configReader('DEFAULT', 'logPath')
+        self.logPath = configReader.get('DEFAULT', 'logPath')
 
     def executeQuery(self, sql): 
         connection = psycopg2.connect(
@@ -41,6 +41,12 @@ class eaEngine:
             
             results = cursor.fetchall()
             connection.commit()
+
+            if len(results) == 0:
+                return None
+            elif len(results) == 1:
+                results = results[0]
+                
             return results
         except psycopg2.Error as e:
             print(sql)
