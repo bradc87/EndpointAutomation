@@ -29,11 +29,11 @@ class eaEndpoint:
         if self.endpointType == 'wsgi':
             endpointStatus = self.checkStatusWSGI()
         
-        if endpointStatus != True and self.status == 'online': 
+        if endpointStatus != True and self.status != 'offline': 
             self.engine.writeLogEntry('WARNING', f'endpointStatusLoop: {self.address} has gone offline')
             self.status = 'offline'
             self.updateStatus('offline')
-        elif endpointStatus == True and self.status == 'offline':
+        elif endpointStatus == True and self.status != 'online':
             self.engine.writeLogEntry('INFO', f'endpointStatusLoop: {self.address} has come online')
             self.status = 'online'
             self.updateStatus('online')

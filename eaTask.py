@@ -3,7 +3,7 @@ from eaEndpoint import eaEndpoint
 import requests
 
 class eaTask:
-    
+
     def __init__(self, taskID, scheduleID=None, instanceID=None, serverCommand=None, serverCommandArgs=None, workingDir=None,  status=None, endpointID=None, endpointUserID=None, effectiveDate=None) -> None:
         
         self.engine = eaEngine()
@@ -19,9 +19,9 @@ class eaTask:
             self.endpointUserID = endpointUserID
             self.effectiveDate = effectiveDate
             
-            self.publishTask()
-            self.populateTaskID()
-            pass
+            #self.publishTask()
+            #self.populateTaskID()
+            return None
         
         sql = f"SELECT * FROM TASK WHERE ID = {taskID};"
         taskDefn = self.engine.executeQuery(sql)
@@ -37,7 +37,8 @@ class eaTask:
         self.endpointUserID = taskDefn['endpoint_user_id']
         self.effectiveDate = taskDefn['effective_date']
 
-        
+
+
     def populateTaskID(self):
         sql = f'''SELECT ID FROM TASK 
                   WHERE SCHEDULE_ID = {self.scheduleID} 
@@ -45,12 +46,14 @@ class eaTask:
                   AND EFFECTIVE_DATE = '{self.effectiveDate}' '''
         
         taskID = self.engine.executeQuery(sql)
-        self.taskID = taskID['task_id']
+        print(taskID)
+        self.taskID = taskID['id']
+        return self.taskID
 
     def publishTask(self):
         DEFAULT_STATUS = 'SCHEDULED'
         sql = f'''INSERT INTO TASK (SCHEDULE_ID, INSTANCE_ID, EFFECTIVE_DATE, STATUS, ENDPOINT_ID, ENDPOINT_USER_ID, WORKING_DIR, SERVER_COMMAND, SERVER_COMMAND_ARGS)
-                  VALUES ({self.scheduleID}, {self.instanceID}, '{self.effectiveDate}', '{DEFAULT_STATUS}', {self.endpointID}, {self.endpointID}, {self.workingDir}, '{self.serverCommand}', '{self.serverCommandArgs}')'''
+                  VALUES ({self.scheduleID}, {self.instanceID}, '{self.effectiveDate}', '{DEFAULT_STATUS}', {self.endpointID}, {self.endpointID}, '{self.workingDir}', '{self.serverCommand}', '{self.serverCommandArgs}')'''
         self.engine.executeQuery(sql)
     
     def updateStatus(self, status):
@@ -66,7 +69,7 @@ class eaTask:
             self.launchWSGI(taskEndpoint)
 
     def getJsonPayload(self) -> str:
-        json = f'"taskID": {self.taskID}, "taskCommand": "{self.serverCommand}", "taskCommandArgs": "{self.serverCommandArgs}"'
+        json = f'"taskID": {self.taskID}, "taskCommand": "{self.serverCommand}", "taskCommandArgs": "{self.serverCommandArgs}","taskWorkingDir": "{self.workingDir}"'
         jsonPayload = '{' + json + '}'
         return jsonPayload
 

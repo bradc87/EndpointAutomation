@@ -10,23 +10,34 @@ import configparser
 runningTasks = []
 app = Flask(__name__)
 
-def runTask(uuid, command):
-    task = (uuid, subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+def runTask(taskID, serverCommand, serverCommandArgs, workingDir):
+    command = '/home/brad/Code/mAgent/src/eaSupervisor.sh'
+    #command = 'date'
+    args = [str(taskID), workingDir, serverCommand, serverCommandArgs]
+    #args = ['1', '/home/brad', 'date', '']
+    
+    task = (taskID, subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
     runningTasks.append(task)
     print('Inserted Task')
 
 def getPendingTasks():
     
-    jobs = executeQuery("SELECT ID, SERVER_COMMAND FROM TASK_QUEUE WHERE STATUS LIKE ?", 'PENDING')
-    print(jobs)
+    pendingTasks = executeQuery("SELECT TASK_ID, SERVER_COMMAND, SERVER_COMMAND_ARGS, WORKING_DIR FROM TASK_QUEUE WHERE TASK_STATUS LIKE ?", ('PENDING',))
+    if len(pendingTasks) == 0:
+       return None
+    
+    print(pendingTasks)
+    return pendingTasks
 
-    #if len(jobs) == 0:
-    #   return
+def updateTaskStatus(taskID, status):
+    executeQuery("UPDATE TASK_QUEUE SET STATUS = ? WHERE TASK_ID = ?", (status, taskID))
+
     
 def executeQuery(sql, values):
-    dbConn = sqlite3.connect('mAgentQueue.sqlite')
-    cursor = dbConn.cursor()
+    
     try:
+        dbConn = sqlite3.connect('mAgentQueue.sqlite')
+        cursor = dbConn.cursor()
         cursor.execute(sql, values)
         dbConn.commit()
         results = cursor.fetchall()
@@ -51,7 +62,7 @@ def getTaskStatus():
 def insert_task():
 
     #Expected JSON Schema: 
-    #{"taskID": 0, "taskCommand": "ls", "taskCommandArgs": "-l"}
+    #{"taskID": 0, "taskCommand": "ls", "taskCommandArgs": "-l", "taskWorkingDir": "/home/brad"}
 
     taskID = None
     taskCommand = None
@@ -67,25 +78,30 @@ def insert_task():
     taskID = postData["taskID"]
     taskCommand = postData['taskCommand']
     taskCommandArgs = postData['taskCommandArgs']
+    taskWorkingDir = postData['taskWorkingDir']
 
-    print(taskID)
-    print(taskCommand)
-
-    sql = "INSERT INTO TASK_QUEUE (TASK_ID, SERVER_COMMAND, SERVER_COMMAND_ARGS, TASK_STATUS) VALUES (?, ?, ?, 'PENDING')"
-    values = (taskID, taskCommand, taskCommandArgs)
-
+    sql = "INSERT INTO TASK_QUEUE (TASK_ID, SERVER_COMMAND, SERVER_COMMAND_ARGS, WORKING_DIR, TASK_STATUS) VALUES (?, ?, ?, ?, 'PENDING')"
+    values = (taskID, taskCommand, taskCommandArgs, taskWorkingDir )
 
     executeQuery(sql, values)
 
-    
     return 'Success', 200 
 
 def taskManagerLoop():
     while True:
-        time.sleep(10)
+        time.sleep(1)
         print('Executing Task Loop...')
+        #Launch Pending Tasks
+        
+        pendingTasks = getPendingTasks()
+        if pendingTasks != None:
+            for pendingTask in pendingTasks:
+                ptaskID = pendingTask[0]
+                pServerCommand = pendingTask[1]
+                pServerCommandArgs = pendingTask[2]
+                pWorkingDir = pendingTask[3]
 
-
+                runTask(ptaskID, pServerCommand, pServerCommandArgs, pWorkingDir)
 
         #Poll status of running tasks
         if runningTasks:
@@ -93,6 +109,7 @@ def taskManagerLoop():
                 taskReturnCode = taskProcess.poll()
                 if taskReturnCode is not None: #Task has finished
                     taskOutput, taskError = taskProcess.communicate()
+                    print(taskError.decode())
                     print(taskOutput.decode())
                     runningTasks.remove((taskID,taskProcess))
                     break
@@ -110,22 +127,6 @@ def writeLogEntry(msgClass, logText):
             print(f'[{curDateTime} - {msgClass}] - {logText}')
             logFile.write(f'[{curDateTime} - {msgClass}] - {logText}\n')
 
-@app.route('/task/insert', methods=['POST'])
-def taskInsert():
-    #Expected JSON Schema {"task_id": 1, "instance_id": 1, "server_command": "ls", "server_command_args": "-al"}
-
-    try:
-        postData = request.get_json()
-        taskID = postData['task_id']
-        instanceID = postData['instance_id']
-        serverCommand = postData['server_command']
-        serverCommandArgs = postData['server_command_args']
-    except Exception as e: 
-        writeLogEntry('ERROR', f'JSON Formatting Error: {e}')
-        return f'JSON Formatting Error: {e}', 500
-
-
-    return f'{taskID},{instanceID}', 200 
 
 if __name__ == "__main__":
     p = Process(target=taskManagerLoop) 

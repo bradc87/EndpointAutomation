@@ -33,6 +33,58 @@ def getRunEligibleTasks():
 
     return runnableTasks
 
+def getTaskByScheduleID(scheduleID, effectiveDate):
+
+    sql = f'''SELECT ID FROM TASK WHERE SCHEDULE_ID = {scheduleID} AND EFFECTIVE_DATE = '{effectiveDate}' '''
+    engine = eaEngine()
+    taskIDs = engine.executeQuery(sql)
+
+    if taskIDs == None:
+        return None
+
+    tasks = []
+
+    for taskID in taskIDs:
+        task = eaTask(taskID)
+        tasks.append(task)
+
+    return tasks    
+
+def getScheduleDefnByID(scheduleID):
+    sql = f'''SELECT * FROM SCHEDULE_DEFN WHERE SCHEDULE_ID = {scheduleID}; '''
+    engine = eaEngine()
+    scheduleDefn = engine.executeQuery(sql)
+    return scheduleDefn
+
+def generateTasks(scheduleID, effectiveDate):
+    hwmInstanceID = 0 
+    existingTasks = getTaskByScheduleID(scheduleID, effectiveDate)
+
+    if existingTasks != None:
+        #handle this
+        pass
+
+    scheduleDefn = getScheduleDefnByID(scheduleID)
+
+    if scheduleDefn == None: 
+        engine = eaEngine()
+        engine.writeLogEntry('ERROR', f'Lookup failed for schedule ID {scheduleID}')
+
+
+    instanceID = hwmInstanceID + 1 
+    serverCommand = scheduleDefn['server_command']
+    serverCommandArgs = scheduleDefn['server_command_args']
+    workingDir = scheduleDefn['working_dir']
+    endpointID = scheduleDefn['endpoint_id']
+    endpointUserID = scheduleDefn['run_user_id']
+    status = 'SCHEDULED'
+
+    task = eaTask(None, scheduleID, instanceID, serverCommand, serverCommandArgs, workingDir, status, endpointID, endpointUserID, effectiveDate)
+    task.publishTask()
+    print(task.populateTaskID())
+
+    
+
 def endpointStatusLoop():
     while True:
         time.sleep(LOOP_INTERVAL)
@@ -79,6 +131,8 @@ if __name__ == "__main__":
     app.run(debug=True, use_reloader=False, port=8080)
     epStatusLoop.join()
     tlmLoop.join()
+
+  
     
 
     
