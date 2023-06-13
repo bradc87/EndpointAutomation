@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
 from multiprocessing import Process
 from datetime import datetime
 from eaEngine import eaEngine
@@ -6,7 +6,7 @@ from eaEndpoint import eaEndpoint
 from eaTask import eaTask
 import time
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 LOOP_INTERVAL=10
 
 def getEnabledEndpoints():
@@ -83,7 +83,7 @@ def generateTasks(scheduleID, effectiveDate):
     task.publishTask()
     print(task.populateTaskID())
 
-    
+  
 
 def endpointStatusLoop():
     while True:
@@ -118,6 +118,9 @@ def TLMLoop():
             for task in runnableTasks:
                 task.launch()
 
+@app.route('/')
+def render_home():
+    return render_template('index.html')
 
 if __name__ == "__main__":
     #print('generating tasks...')
