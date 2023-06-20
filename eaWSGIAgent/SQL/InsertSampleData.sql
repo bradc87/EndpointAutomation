@@ -1,0 +1,2 @@
+INSERT INTO endpoint (DISPLAY_NAME, ADDRESS, STATUS, ENABLED)
+VALUES ('skyfall', 'localhost:5000', 'UNKNOWN', TRUE);
